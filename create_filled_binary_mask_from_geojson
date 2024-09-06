@@ -1,0 +1,68 @@
+import numpy as np
+from shapely.geometry import shape
+from shapely.ops import unary_union
+import cv2
+import geojson
+
+###### if there is a hole isnide an instance it should be different annotations!!!!!!!!!
+def create_filled_binary_mask_from_geojson(input_path, slide=None):
+    # Read the GeoJSON file
+    with open(input_path, 'r') as f:
+        data = geojson.load(f)
+
+    # Create a list to store the polygons
+    polygons = []
+
+    # Extract individual polygons from the GeoJSON features
+    for feature in data['features']:
+        polygon = shape(feature['geometry'])
+        if polygon.geom_type == 'Polygon':
+            polygons.append(polygon)
+        elif polygon.geom_type == 'MultiPolygon':
+            polygons.extend(polygon)
+
+    # Merge all polygons into a single polygon
+
+    merged_polygon = unary_union(polygons)
+    if slide ==None:
+    # Determine the bounding box
+        xmin, ymin, xmax, ymax = merged_polygon.bounds
+    else:
+        levelDims = np.array(slide.level_dimensions)
+        xmax = levelDims[0][0]
+        ymax = levelDims[0][1]
+
+    # Calculate the width and height of the binary mask based on the merged polygon's size
+    width = int(xmax) 
+    height = int(ymax)
+
+    # Create an empty binary mask as a NumPy array
+    mask = np.zeros((height, width), dtype=np.uint8)
+    mask2 = np.zeros((height, width), dtype=np.uint8)
+
+    # Convert each polygon to pixel coordinates and set the corresponding pixels in the mask as 255
+    map = []
+    i=0
+    for polygon in polygons:
+        mask = np.zeros((height, width), dtype=np.uint8)
+        # print(i)
+        # if i ==0:
+        #     i = i + 1
+        #     continue
+        poly_coords = np.array(polygon.exterior.coords)
+        x_coords = (poly_coords[:, 0] ).round().astype(int)
+        y_coords = (poly_coords[:, 1] ).round().astype(int)
+
+        # Clip the coordinates to ensure they fall within the valid range
+        x_coords = np.clip(x_coords, 0, width - 1)
+        y_coords = np.clip(y_coords, 0, height - 1)
+
+        pts = np.stack((x_coords, y_coords), axis=1)
+        cv2.fillPoly(mask, [pts], color=1)
+
+        mask2 = mask2 + mask 
+        
+
+    mask = mask2 == 1
+    mask = mask.astype('uint8')
+    return cv2.resize(mask, dsize=(levelDims[usedLevel][0],  levelDims[usedLevel][1]), interpolation=cv2.INTER_LINEAR_EXACT)
