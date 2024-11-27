@@ -1,5 +1,25 @@
 import pyvips
 
+from tifffile import TiffFile, imwrite
+
+def convert_ome_to_tiff(input_path, output_path):
+    """
+    Convert an OME-TIFF file to a standard TIFF file.
+
+    Parameters:
+    input_path (str): The path to the input OME-TIFF file.
+    output_path (str): The path to save the output TIFF file.
+    """
+    # Read the OME-TIFF file
+    with TiffFile(input_path) as tif:
+        # Extract the image data
+        image_data = tif.asarray()
+
+    # Save the image data as a standard TIFF file
+    imwrite(output_path, image_data)
+
+    print(f"Conversion from OME-TIFF to TIFF is complete. The output file is saved as '{output_path}'.")
+
 def convert_to_pyramidal_tiff(input_image_path, output_image_path):
     """
     Convert a regular TIFF image to a pyramidal TIFF format, compatible with OpenSlide.
